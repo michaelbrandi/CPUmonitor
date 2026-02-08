@@ -1,6 +1,6 @@
 # CPU Monitor
 
-A lightweight Linux tray application that watches for runaway processes. When any process holds above 90% CPU for more than 60 seconds, you get a desktop notification.
+A lightweight Linux tray application that watches for runaway processes. The tray icon gradually changes color from green to yellow to red as a high-CPU process approaches the 60-second threshold. When any process holds above 90% CPU for more than 60 seconds, you get a desktop notification.
 
 ## Prerequisites
 
@@ -24,7 +24,7 @@ The install script will:
 python3 cpu_monitor.py
 ```
 
-A system tray icon will appear. Right-click it for options.
+A green system tray icon will appear. Right-click it for options. When a process exceeds 90% CPU, the icon gradually shifts from green through yellow to red over 60 seconds.
 
 ## Autostart
 
@@ -38,4 +38,4 @@ Simulate a CPU spike with:
 stress --cpu 1 --timeout 90
 ```
 
-You should see a notification after ~60 seconds. Install `stress` with `sudo apt install stress` if needed.
+Watch the tray icon change from green to yellow to red over ~60 seconds, then a notification fires. Install `stress` with `sudo apt install stress` if needed.

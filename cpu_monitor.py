@@ -1,9 +1,12 @@
 #!/usr/bin/env python3
 
 import os
+import shutil
 import signal
+import tempfile
 import time
 
+import cairo
 import gi
 gi.require_version("Gtk", "3.0")
 gi.require_version("AyatanaAppIndicator3", "0.1")
@@ -26,11 +29,12 @@ class CPUMonitor:
 
         self.indicator = AyatanaAppIndicator3.Indicator.new(
             "cpu-monitor",
-            "utilities-system-monitor",
+            "cpu-0",
             AyatanaAppIndicator3.IndicatorCategory.SYSTEM_SERVICES,
         )
         self.indicator.set_status(AyatanaAppIndicator3.IndicatorStatus.ACTIVE)
 
+        self._generate_icons()
         self.indicator.set_menu(self._build_menu())
 
         self.high_cpu_start = {}  # PID -> monotonic timestamp
@@ -57,6 +61,27 @@ class CPUMonitor:
 
         menu.show_all()
         return menu
+
+    def _generate_icons(self):
+        self._icon_dir = tempfile.mkdtemp(prefix="cpumon-icons-")
+        size = 22
+        for step in range(13):
+            t = step / 12.0
+            r = min(t * 2.0, 1.0)
+            g = min((1.0 - t) * 2.0, 1.0)
+            b = 0.0
+            surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, size, size)
+            ctx = cairo.Context(surface)
+            cx, cy, radius = size / 2, size / 2, size / 2 - 1
+            ctx.arc(cx, cy, radius, 0, 2 * 3.14159265)
+            ctx.set_source_rgb(r, g, b)
+            ctx.fill_preserve()
+            ctx.set_source_rgb(r * 0.5, g * 0.5, b * 0.5)
+            ctx.set_line_width(1)
+            ctx.stroke()
+            surface.write_to_png(os.path.join(self._icon_dir, f"cpu-{step}.png"))
+        self.indicator.set_icon_theme_path(self._icon_dir)
+        self.indicator.set_icon("cpu-0")
 
     def _check_cpu(self):
         current_pids = set()
@@ -90,6 +115,16 @@ class CPUMonitor:
         for pid in gone:
             del self.high_cpu_start[pid]
             self.alerted_pids.discard(pid)
+
+        # Update tray icon based on longest-tracked high-CPU process
+        if self.high_cpu_start:
+            now = time.monotonic()
+            max_duration = max(now - start for start in self.high_cpu_start.values())
+            progress = min(max_duration / DURATION_THRESHOLD, 1.0)
+            icon_index = round(progress * 12)
+        else:
+            icon_index = 0
+        self.indicator.set_icon("cpu-{}".format(icon_index))
 
         return True
 
@@ -126,6 +161,7 @@ class CPUMonitor:
                 pass
 
     def _on_quit(self, _widget):
+        shutil.rmtree(self._icon_dir, ignore_errors=True)
         Notify.uninit()
         Gtk.main_quit()
 
