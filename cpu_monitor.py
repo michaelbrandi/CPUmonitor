@@ -1,8 +1,11 @@
 #!/usr/bin/env python3
 
+import atexit
+import glob
 import os
 import shutil
 import signal
+import sys
 import tempfile
 import time
 
@@ -63,7 +66,11 @@ class CPUMonitor:
         return menu
 
     def _generate_icons(self):
+        # Clean up any leftover icon dirs from previous crashes
+        for stale in glob.glob(os.path.join(tempfile.gettempdir(), "cpumon-icons-*")):
+            shutil.rmtree(stale, ignore_errors=True)
         self._icon_dir = tempfile.mkdtemp(prefix="cpumon-icons-")
+        atexit.register(lambda: shutil.rmtree(self._icon_dir, ignore_errors=True))
         size = 22
         for step in range(13):
             t = step / 12.0
@@ -142,12 +149,13 @@ class CPUMonitor:
 
     def _desktop_entry(self):
         script = os.path.abspath(__file__)
+        python = sys.executable or shutil.which("python3") or "/usr/bin/python3"
         return (
             "[Desktop Entry]\n"
             "Type=Application\n"
             "Name=CPU Monitor\n"
             "Comment=Monitor CPU usage and warn about runaway processes\n"
-            f"Exec=/usr/bin/python3 {script}\n"
+            f"Exec={python} {script}\n"
             "Icon=utilities-system-monitor\n"
             "Terminal=false\n"
             "Categories=System;Monitor;\n"
