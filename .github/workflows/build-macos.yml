@@ -1,0 +1,38 @@
+name: Build macOS App
+
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build CPUMonitor.app
+        run: |
+          cd macos-native
+          chmod +x build.sh
+          ./build.sh
+
+      - name: Zip app bundle
+        run: |
+          cd macos-native/build
+          zip -r CPUMonitor.zip CPUMonitor.app
+
+      - name: Get short SHA
+        id: sha
+        run: echo "short=$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: build-${{ steps.sha.outputs.short }}
+          name: CPUMonitor (build ${{ steps.sha.outputs.short }})
+          body: |
+            Auto-built from commit ${{ github.sha }}.
+
+            **Install:** Download `CPUMonitor.zip`, unzip, then right-click the app → Open (first time only, since it's not notarized).
+          files: macos-native/build/CPUMonitor.zip

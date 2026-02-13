@@ -38,7 +38,7 @@ class CPUMonitor:
         self.indicator.set_menu(self._build_menu())
 
         self.high_cpu_start = {}  # PID -> monotonic timestamp
-        self.alerted_pids = set()
+        self.alerted_pids = {}   # PID -> Notify.Notification
 
         # Prime psutil — first cpu_percent call always returns 0
         psutil.cpu_percent()
@@ -104,8 +104,7 @@ class CPUMonitor:
 
                     elif (now - self.high_cpu_start[pid] >= DURATION_THRESHOLD
                           and pid not in self.alerted_pids):
-                        self._send_notification(info["name"], pid, cpu)
-                        self.alerted_pids.add(pid)
+                        self.alerted_pids[pid] = self._send_notification(info["name"], pid, cpu)
 
             except (psutil.NoSuchProcess, psutil.AccessDenied):
                 continue
@@ -114,7 +113,12 @@ class CPUMonitor:
         gone = set(self.high_cpu_start) - current_pids
         for pid in gone:
             del self.high_cpu_start[pid]
-            self.alerted_pids.discard(pid)
+            notification = self.alerted_pids.pop(pid, None)
+            if notification:
+                try:
+                    notification.close()
+                except Exception:
+                    pass
 
         # Update tray icon based on longest-tracked high-CPU process
         if self.high_cpu_start:
@@ -134,6 +138,7 @@ class CPUMonitor:
         n = Notify.Notification.new(summary, body, "dialog-warning")
         n.set_urgency(Notify.Urgency.CRITICAL)
         n.show()
+        return n
 
     def _desktop_entry(self):
         script = os.path.abspath(__file__)
