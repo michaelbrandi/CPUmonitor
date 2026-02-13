@@ -1,4 +1,4 @@
-name: Build macOS App
+name: Build Releases
 
 on:
   push:
@@ -9,7 +9,7 @@ permissions:
   contents: write
 
 jobs:
-  build:
+  build-macos:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
@@ -23,11 +23,48 @@ jobs:
       - name: Zip app bundle
         run: |
           cd macos-native/build
-          zip -r CPUMonitor.zip CPUMonitor.app
+          zip -r CPUMonitor-macOS.zip CPUMonitor.app
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: macos-build
+          path: macos-native/build/CPUMonitor-macOS.zip
+
+  build-linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Package Linux release
+        run: |
+          mkdir -p CPUMonitor-linux
+          cp cpu_monitor.py CPUMonitor-linux/
+          cp install.sh CPUMonitor-linux/
+          chmod +x CPUMonitor-linux/install.sh
+          tar czf CPUMonitor-linux.tar.gz CPUMonitor-linux
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux-build
+          path: CPUMonitor-linux.tar.gz
+
+  release:
+    needs: [build-macos, build-linux]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
 
       - name: Get short SHA
         id: sha
         run: echo "short=$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: macos-build
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: linux-build
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
@@ -37,5 +74,15 @@ jobs:
           body: |
             Auto-built from commit ${{ github.sha }}.
 
-            **Install:** Download `CPUMonitor.zip`, unzip, then right-click the app → Open (first time only, since it's not notarized).
-          files: macos-native/build/CPUMonitor.zip
+            **macOS:** Download `CPUMonitor-macOS.zip`, unzip, then right-click the app → Open (first time only).
+
+            **Linux:** Download `CPUMonitor-linux.tar.gz`, then:
+            ```
+            tar xzf CPUMonitor-linux.tar.gz
+            cd CPUMonitor-linux
+            ./install.sh
+            ```
+            The installer handles all dependencies (supports apt, dnf, pacman, zypper).
+          files: |
+            CPUMonitor-macOS.zip
+            CPUMonitor-linux.tar.gz
