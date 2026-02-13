@@ -69,3 +69,16 @@ echo "  - Launch from your app menu (search 'CPU Monitor')"
 echo "  - Or run: python3 $INSTALL_DIR/cpu_monitor.py"
 echo ""
 echo "To uninstall: sudo rm -rf $INSTALL_DIR $DESKTOP_FILE"
+
+# ── GNOME tray support check ────────────────────────────────────
+
+if [ "${XDG_CURRENT_DESKTOP:-}" = "GNOME" ]; then
+    if ! gnome-extensions list 2>/dev/null | grep -q appindicatorsupport; then
+        echo ""
+        echo "NOTE: You are running GNOME, which does not show tray icons by default."
+        echo "Install the AppIndicator extension for the tray icon to appear:"
+        echo "  sudo apt install gnome-shell-extension-appindicator  (Debian/Ubuntu)"
+        echo "  sudo dnf install gnome-shell-extension-appindicator  (Fedora)"
+        echo "Then log out and back in, and enable it in the Extensions app."
+    fi
+fi
