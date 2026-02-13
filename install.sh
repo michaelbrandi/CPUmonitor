@@ -70,15 +70,30 @@ echo "  - Or run: python3 $INSTALL_DIR/cpu_monitor.py"
 echo ""
 echo "To uninstall: sudo rm -rf $INSTALL_DIR $DESKTOP_FILE"
 
-# ── GNOME tray support check ────────────────────────────────────
+# ── GNOME tray support ───────────────────────────────────────────
 
 if [ "${XDG_CURRENT_DESKTOP:-}" = "GNOME" ]; then
     if ! gnome-extensions list 2>/dev/null | grep -q appindicatorsupport; then
         echo ""
-        echo "NOTE: You are running GNOME, which does not show tray icons by default."
-        echo "Install the AppIndicator extension for the tray icon to appear:"
-        echo "  sudo apt install gnome-shell-extension-appindicator  (Debian/Ubuntu)"
-        echo "  sudo dnf install gnome-shell-extension-appindicator  (Fedora)"
-        echo "Then log out and back in, and enable it in the Extensions app."
+        echo "GNOME does not show tray icons by default."
+        echo "CPU Monitor needs the AppIndicator extension to display its tray icon."
+        echo "This is a small, well-known extension that adds system tray support to GNOME."
+        echo ""
+        read -rp "Install the AppIndicator GNOME extension? [Y/n] " answer
+        if [ "${answer,,}" != "n" ]; then
+            if command -v apt-get &>/dev/null; then
+                sudo apt-get install -y -qq gnome-shell-extension-appindicator
+            elif command -v dnf &>/dev/null; then
+                sudo dnf install -y -q gnome-shell-extension-appindicator
+            elif command -v pacman &>/dev/null; then
+                sudo pacman -S --noconfirm --needed gnome-shell-extension-appindicator
+            elif command -v zypper &>/dev/null; then
+                sudo zypper install -y gnome-shell-extension-appindicator
+            fi
+            gnome-extensions enable appindicatorsupport@rgcjonas.gmail.com 2>/dev/null || true
+            echo "Extension installed. You may need to log out and back in for it to take effect."
+        else
+            echo "Skipped. The tray icon will not be visible until the extension is installed."
+        fi
     fi
 fi
