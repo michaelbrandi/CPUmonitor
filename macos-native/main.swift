@@ -171,8 +171,13 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
                 } else if let start = highCPUStart[pid],
                           mono - start >= durationThreshold,
                           alertedPIDs[pid] == nil {
-                    let notifID = sendNotification(name: current.name, pid: pid, cpu: cpuPercent)
-                    alertedPIDs[pid] = notifID
+                    if current.name == "lsof" {
+                        killStuckLsof(pid: pid, cpu: cpuPercent)
+                        alertedPIDs[pid] = "killed-\(pid)"  // sentinel — don't retry
+                    } else {
+                        let notifID = sendNotification(name: current.name, pid: pid, cpu: cpuPercent)
+                        alertedPIDs[pid] = notifID
+                    }
                 }
             }
         }
@@ -232,6 +237,23 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
         )
         UNUserNotificationCenter.current().add(request)
         return identifier
+    }
+
+    // MARK: Kill stuck lsof
+
+    private func killStuckLsof(pid: pid_t, cpu: Double) {
+        guard kill(pid, SIGKILL) == 0 else { return }  // EPERM = not our process, skip silently
+        let content = UNMutableNotificationContent()
+        content.title = "Killed Stuck lsof"
+        content.subtitle = "PID \(pid)"
+        content.body = "lsof was at \(Int(cpu))% CPU for over \(Int(durationThreshold))s and was killed."
+        content.sound = .default
+        let request = UNNotificationRequest(
+            identifier: "killed-lsof",  // fixed ID — each kill replaces the previous
+            content: content,
+            trigger: nil
+        )
+        UNUserNotificationCenter.current().add(request)
     }
 
     // Show notification banner even when the app is in the foreground
