@@ -24,5 +24,11 @@ cp "$DIR/Info.plist" "$CONTENTS/Info.plist"
 codesign --force --sign - "$APP_BUNDLE"
 
 echo ""
-echo "Built:  $APP_BUNDLE"
-echo "Run:    open $APP_BUNDLE"
+echo "Installing to /Applications..."
+pkill -x "$APP_NAME" 2>/dev/null || true
+cp -R "$APP_BUNDLE" "/Applications/$APP_NAME.app"
+open "/Applications/$APP_NAME.app"
+
+echo ""
+echo "Built:   $APP_BUNDLE"
+echo "Installed & launched: /Applications/$APP_NAME.app"
